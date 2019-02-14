@@ -1,0 +1,97 @@
+Am construit functiile necesare in fisierul: hash.c
+Pentru initializarea hashtabelului, am apelat functia:
+	TH* CitireTH(FILE *in,char *tcheie,int *hnr) ,care:
+	*) citeste si modifica prin efect lateral tip_cheie si nr_bucketuri din functia principala 
+							(*tcheie si *hnr in functia CitireTH)
+	*)in functie de tipul de cheie citita, functia va salva in niste variabile pointerii la 
+	functii corespunzatori tipului de cheie (key_cmp,key_afi,key_elib)
+	*)apeleaza functia IniTH(nr_bucketuri,hash_f,key_cmp,key_afi,key_elib) care aloca tabela de
+	hash primind ca parametri numarul de elemente al vectorului tabelei de hash (nr_bucketuri)
+	si pointerii specifici tipului de cheie al tabelei hash (key_cmp,key_afi,key_elib)
+Mai departe, programul principal citeste numarul de comenzi, care reprezinta de cate ori programul
+efectueaza un insert,print,find sau delete.
+1) inserare
+se apeleaza functia: 
+	*)int InsTH(TH*h,char tip_cheie,int nr_bucketuri,TLG CelulaAlocata),care primeste ca parametru
+	-pe langa tabela hash,tipul cheii,numarul de bucketuri si un pointer(TLG) catre celula alocata.
+	In functie de tipul cheii se va stabili codul, obtinut in urma aplicarii functiei de hash,cod
+	prin care se va stabili lista in care in care trebuie introdusa celula si daca intrarea se 
+	gaseste deja in bucket,intrarea veche se inlocuieste. In caz contrar, celula va fi introdusa la
+	sfarsitul listei.
+	-pentru alocarea celulei, functiei anterioare i se transmite un pointer(TLG) catre o celula 
+	(CitireCelula(in,tip_cheie)) alocata prin functia:
+	*)TLG CitireCelula(FILE *in,char tip_cheie)
+	-aloca dinamic spatiu penru un element de tip TCelulaG
+	-aloca campul info cu ajutorul functiei:
+	*)void *CitireInfoCel(FILE *in,char tip_cheie)
+	-citeste cheia si tipul valorii iar, in functie de acest tip, va atribui pointerii la functii
+	coresunzatori (variabila de tip TF elib_valoare poate fi elib_valoareTStudent sau elib_valoare
+	TMaterie iar variabila de tip TFAfi afi_valoare poate fi afi_valoareTStudent sau afi_valoareTM
+        aterie)
+	-primeste informatia din campul valoare a structurii TInfoCel (care descrie campul info al 
+	TCelulaG) cu ajutorul functiei:
+	*)void* CitireValoare(FILE *in,char* tip_valoare)
+	-in functie de tipul valorii,citeste informatiile din campurile uneia din cele 2 structuri date
+										(TStudent sau TMaterie)
+	-returneaza pointerul catre una din aceste structuri (de tip void*) prin apelul functiei:
+	*)void * AlocValoare(char *tip_valoare,void *Info)
+	-aloca dinamic structura corespunzatoare si salveaza in aceasta memorie datele de pe structura 
+	Info (alocata pe stiva) (am mai alocat odata si elementele char* din Info,alocate dinamic,
+	pentru a consuma cat mai putin spatiu (malloc(strlen(info->string)+1)))
+	Functia CitireInfoCel trimite mai departe aceste informatii drept parametri ai functiei:
+	*)void *AlocTInfoCel(void*Cheie,void *valoare,TF elib_valoare,TFAfi afi_valoare,char tip_cheie)
+	-aloca o structura de tip TInfoCel, pe baza primilor 4 parametri, care sunt informatiile din
+	campurile acestei structuri si a tipului de cheie
+2) print
+se apeleaza functia:
+	*)void PrintTH(FILE *out,TH* h,int nr_bucketuri)
+	-itereaza prin fiecare lista a vectorului de liste h->v si afiseaza celulele din acestea.
+3)Redimensionare
+La sfarsitul fiecarei operatii din functia main, se verifica daca load factor-ul atinge/depaseste 0.75
+Load factor-ul se obtine prin apelul functiei:
+	*)float load_factor(TH *h,int nr_bucketuri)
+	-itereza prin tabela h,numara celulele,imparte numarul de celule la cel de bucket-uri(nr_bucketuri)
+In caz afirmativ, se apeleaza functia:
+	*)void Redimensionare(TH **h,int *nr_bucketuri,char tip_cheie)
+	-creeaza o noua tabela (g) cu un nr de bucket-uri dublu si avand celelalte campuri ca h
+	-itereaza prin h si insereaza fiecare celula in noua tabela (rupe vechile legaturi)
+	-sterge tabela veche
+4)cautare
+se apeleaza functia:
+	*)int Find(FILE *in,FILE *out,TH*h,char tip_cheie,int nr_bucketuri)
+	-in functie de tipul cheii citeste cheia cautata
+	-itereaza prin tabela hash. Daca gaseste cheia, este afisata valoarea din celula respectiva. In 
+	caz contrar este afisat textul "Nu exista"
+5)stergere
+se apeleaza functia:
+	*)int Delete(FILE *in,TH*h,char tip_cheie,int nr_bucketuri)
+	-in functie de tipul cheii citeste cheia cautata
+        -itereaza prin tabela hash. Daca gaseste cheia, modifica legaturile si elibereza celula gasita.In
+	caz contrar hashmapul ramane nemodificat
+6)eliberare
+La sfarsitul functiei main se elibereaza lista prin apelul functiei:
+	*)void ElibTH(TH **h,int nr_bucketuri)
+	-elibereaza structura de tip TH (free(*h))
+	-elibereaza vectorul de liste h->v prin apelul functiei:
+	*)void ElibBucketuri(TH *h,int nr_bucketuri)
+	-elibereaza vectorul de liste (free(h->v))
+	-itereaza in vectorul de liste si elibereaza fiecare celula din fiecare lista cu ajutorul functiei:
+	*)void ElibCelula(TH *h,ALG l)
+	-elibereaza campul info din structura TCelulaG (inclusiv prin eliberarea campurilor valoare si
+	cheie din campul info) (	info->elib_valoare(info->valoare);	)
+        				h->key_elib(info->cheie);
+        				free((*l)->info);
+	-elibereza structura TCelulaG ( free(*l) )
+
+Pentru compararea,afisarea,eliberarea cheilor am folosit functiile:
+int key_cmpS(void *cheie1,void *cheie2);
+int key_cmpD(void *cheie1,void *cheie2);
+void key_afiS(FILE *out,void *cheie);
+void key_afiD(FILE *out,void *cheie);
+void key_elibS(void *cheie);
+void key_elibD(void *cheie);
+Pentru afisarea,eliberarea valorilor din informatia celulei am folosit functiile:
+void afi_valoareTMaterie(FILE *out,void *valoare);
+void afi_valoareTStudent(FILE *out,void *valoare);
+void elib_valoareTStudent(void *valoare);
+void elib_valoareTMaterie(void *valoare);
